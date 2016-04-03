@@ -1,0 +1,160 @@
+---
+title: "Assignment_PracticalML"
+author: "DR"
+date: "3 April 2016"
+output: html_document
+---
+# 
+## Synopsis
+
+The goal of this assignment is to assess $how$ $well$ exercise has been done rather than $how$ $much$. Data has been collected
+from accelerometers on the belt, forearm, arm and dumbell of 6 people, who have been asked to do barbell lifts correctly and
+incorrectly in five different ways. 
+
+The key findings are:
+* Random forests have a $97\%$ accuracy in predicting on the cross validation test suite.
+* Random forests are better than the other models considered: namely decision trees (rpart) and generalised boosted linear models (gbm). 
+* One should take care in overinterpretting this result as they are from only 6 participants in the experiment.
+*
+## Required libraries
+```{r}
+library(caret) # required for the machine learning
+library(rpart) 
+library(rpart.plot);library(rattle) # for nice plots of classification trees
+library(dplyr) #useful for data frame manipulation
+library(ElemStatLearn) #useful for bagging 
+library(randomForest)
+library(AppliedPredictiveModeling) # to get the accuracy of the model fits using confusionMatrix
+library(klaR) # for accuracy measure
+```
+
+## Data Processing -- read in the data and then clean it
+```{r,cache=TRUE}
+if(!file.exists("pml_training.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv","pml_training.csv")
+}
+if(!file.exists("pml_testing.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","pml_testing.csv")
+}
+training<-read.csv("pml_training.csv",stringsAsFactors = FALSE,header=TRUE)
+testing<-read.csv("pml_testing.csv",stringsAsFactors = FALSE,header=TRUE)
+
+dim(training) # to get size of training data
+dim(testing) # to get size of training data
+```
+The `training` data will be used to construct the model and will be subdivided into a training and testing set. In this
+context testing of the training data will be used for model selection. The best model as it performs on this subtesting set
+will be put forward on the actual testing set. For clarity I will refer to the `subtraining` and `subtesting` sets (as subparts of the
+training data set) and the testing set. 
+
+Now let's have a look at the data and see if it needs to be cleaned (on the way let's also have a look at the classe variable).
+```{r}
+#head(training)
+#names(training)
+table(training$classe)
+table(is.na(training)) 
+```
+Many of the variables have NA values. Let's eliminate the NA values, but first eliminate the column for the `classe`
+variable we're trying to predict.
+```{r}
+# Now let's find those columns with a large number of NA values
+proportion_NA <-sapply(training, function(y) sum(length(which(is.na(y))))/length(y))
+```
+Looking through this it's clear that some variables have up to $97.9\%$ missing values and others
+are all present. So I set a cut off to exclude columns with over $50\%$ of missing values.
+```{r}
+whichcols<-c(proportion_NA < 0.9)
+training<- training[whichcols]
+```
+In addition from the `head(training)` command executed earlier it's clear that the first 7 columns contain information that is not particular useful from a machine learning perspective, i.e. user_name, timestamp, etc.
+```{r}
+training<-training[-c(1:7)]
+dim(training)
+```
+The cleaning isn't done yet. We also saw that there may be columns with lots of missing values. Let's check for them by setting them to be NA. Then do the same steps as before to eliminate those columns. 
+```{r}
+training[training==""]<-NA
+proportion_NA <-sapply(training, function(y) sum(length(which(is.na(y))))/length(y))
+whichcols<-c(proportion_NA < 0.9)
+training<- training[whichcols]
+dim(training)
+```
+## Creating the subtraining and subtesting sets. And then doing a PCA.
+I have subsetted the (cleaned) training set with a 60/40 split between subtraining and subtesting sets. For reproducibility
+I specify the seed used.
+```{r}
+set.seed(1234)
+train_choice<-createDataPartition(y=training$classe,p=0.6,list=FALSE)
+subtraining<-training[train_choice,];subtesting<-training[-train_choice,]
+dim(subtraining)
+dim(subtesting)
+```
+These data sets are pretty big so first I will do a **PCA** analysis to reduce this. I use a threshold of $95\%$ to capture
+as much of the information as possible. Be careful not to include the variable we're trying to predict within the PCA
+```{r}
+preProc<-preProcess(subtraining[,-which(colnames(subtraining)=="classe")],method="pca",thresh=0.95)
+subtrainingPCA<-predict(preProc,subtraining[,-which(colnames(subtraining)=="classe")])
+subtestingPCA<-predict(preProc,subtesting[,-which(colnames(subtraining)=="classe")])
+dim(subtrainingPCA)
+dim(subtestingPCA)
+```
+
+## Building the model (on the subtraining set)
+As the goal of this model is to classify how well exercise has been done, I will try a selection
+of classification schemes: namely 
+* classification/decision trees (rpart)
+* random forests (rf)
+* generalised boosted regression model (gbm)
+
+
+```{r,cache=TRUE}
+modFit_rpart<-suppressMessages(train(subtraining$classe~.,data=subtrainingPCA,method="rpart"))
+#modFit_rf<-suppressMessages(train(subtraining$classe~.,data=subtrainingPCA,method="rf"))
+modFit_rf<-randomForest(as.factor(subtraining$classe)~.,data=subtrainingPCA,method="class")
+modFit_gbm<-suppressMessages(train(subtraining$classe~.,data=subtrainingPCA,method="gbm",verbose=FALSE))
+```
+Let's visualise some of these. First for the decision tree (though this would be more intuitive if I'd done the training
+on the actual data set)
+```{r}
+fancyRpartPlot(modFit_rpart$finalModel)
+```
+
+## Cross Validation Testing
+Now we apply our models to each of the subtesting sets to assess their accuracy.
+```{r}
+predict_test_rpart<-predict(modFit_rpart,subtestingPCA)
+predict_test_rf<-predict(modFit_rf,subtestingPCA)
+predict_test_gbm<-predict(modFit_gbm,subtestingPCA)
+```
+
+## Out of sample error
+I use the `confusionMatrix` function to measure the out of sample error. 
+```{r}
+confusionMatrix(predict_test_rpart,subtesting$classe)
+confusionMatrix(predict_test_rf,subtesting$classe)
+confusionMatrix(predict_test_gbm,subtesting$classe)
+```
+From these it looks like `rpart` is not as good as `gbm` which in turn is not quite as good as random forests.
+However, there's a lot of information in these. Instead I pick out the accuracy variable from the previous function.
+This is an estimate of the out of sample error rate.
+```{r}
+Accuracy_rpart<-confusionMatrix(predict_test_rpart,subtesting$classe)$overall['Accuracy']
+Accuracy_rf<-confusionMatrix(predict_test_rf,subtesting$classe)$overall['Accuracy']
+Accuracy_gbm<-confusionMatrix(predict_test_gbm,subtesting$classe)$overall['Accuracy']
+c(Accuracy_rpart,Accuracy_rf,Accuracy_gbm)
+```
+Random forests perform best. 
+
+## Application to the final test data set
+Using the best model (random forests), the next and final set is to apply it to the test data set. Want to use the same variables as per the training. Then the same PCA combinations as obtained previously when applied to this
+testing suite. 
+```{r}
+list_cols<-names(testing) %in% names(subtraining)
+testing<-testing[list_cols]
+testingPCA<-predict(preProc,testing)
+predictions_testset<-predict(modFit_rf,testingPCA,type="class")
+predictions_testset
+```
+
+## Discussion 
+The model has been built using data from only 6 participants. Therefore, despite the claim of $97\%$ accuracy of the model, one should take caution that this model has been built from a limited number of participants and therefore may miss some key confounding factors that might show up in a larger sample.
