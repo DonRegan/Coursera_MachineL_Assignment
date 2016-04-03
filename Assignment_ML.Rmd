@@ -12,6 +12,7 @@ from accelerometers on the belt, forearm, arm and dumbell of 6 people, who have 
 incorrectly in five different ways. 
 
 The key findings are:
+
 * Random forests have a 97% accuracy in predicting on the cross validation test suite.
 * Random forests are better than the other models considered: namely decision trees (rpart) and generalised boosted linear models (gbm). 
 * One should take care in overinterpretting this result as they are from only 6 participants in the experiment.
@@ -19,14 +20,14 @@ The key findings are:
 
 ## Required libraries
 ```{r}
-library(caret) # required for the machine learning
-library(rpart) 
-library(rpart.plot);library(rattle) # for nice plots of classification trees
-library(dplyr) #useful for data frame manipulation
-library(ElemStatLearn) #useful for bagging 
-library(randomForest)
-library(AppliedPredictiveModeling) # to get the accuracy of the model fits using confusionMatrix
-library(klaR) # for accuracy measure
+suppressMessages(library(caret)) # required for the machine learning
+suppressMessages(library(rpart)) 
+suppressMessages(library(rpart.plot));suppressMessages(library(rattle)) # for nice plots of classification trees
+suppressMessages(library(dplyr)) #useful for data frame manipulation
+suppressMessages(library(ElemStatLearn)) #useful for bagging 
+suppressMessages(library(randomForest))
+suppressMessages(library(AppliedPredictiveModeling)) # to get the accuracy of the model fits using confusionMatrix
+suppressMessages(library(klaR)) # for accuracy measure
 ```
 
 ## Data Processing -- read in the data and then clean it
