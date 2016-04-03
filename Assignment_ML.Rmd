@@ -7,15 +7,16 @@ output: html_document
 # 
 ## Synopsis
 
-The goal of this assignment is to assess $how$ $well$ exercise has been done rather than $how$ $much$. Data has been collected
+The goal of this assignment is to assess how well exercise has been done rather than how much. Data has been collected
 from accelerometers on the belt, forearm, arm and dumbell of 6 people, who have been asked to do barbell lifts correctly and
 incorrectly in five different ways. 
 
 The key findings are:
-* Random forests have a $97\%$ accuracy in predicting on the cross validation test suite.
+* Random forests have a 97% accuracy in predicting on the cross validation test suite.
 * Random forests are better than the other models considered: namely decision trees (rpart) and generalised boosted linear models (gbm). 
 * One should take care in overinterpretting this result as they are from only 6 participants in the experiment.
-*
+* 19 of the 20 test points were predicted correctly with the fitted model.
+
 ## Required libraries
 ```{r}
 library(caret) # required for the machine learning
@@ -157,4 +158,6 @@ predictions_testset
 ```
 
 ## Discussion 
-The model has been built using data from only 6 participants. Therefore, despite the claim of $97\%$ accuracy of the model, one should take caution that this model has been built from a limited number of participants and therefore may miss some key confounding factors that might show up in a larger sample.
+The model has been built using data from only 6 participants. Therefore, despite the claim of 97% accuracy of the model, one should take caution that this model has been built from a limited number of participants and therefore may miss some key confounding factors that might show up in a larger sample.
+
+Having applied these predictions to the test data via the course link, I have found a 95% success rate i.e. 19 of the 20 test points were predicted correctly.
